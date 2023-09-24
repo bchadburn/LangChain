@@ -1,0 +1,176 @@
+from langchain.document_loaders import WebBaseLoader
+from langchain.indexes import VectorstoreIndexCreator
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+    
+from vectorstore_setup.vectorstore_functions import ChromaVectorStoreManager
+
+# Reference: https://python.langchain.com/docs/use_cases/question_answering/
+# Use case: Have questions about your own text documents 
+
+# The pipeline for converting raw unstructured data into a QA chain looks like this:
+
+# Loading: First we need to load our data. Unstructured data can be loaded from many sources. Use the LangChain integration hub to browse the full set of loaders. Each loader returns data as a LangChain Document.
+# Splitting: Text splitters break Documents into splits of specified size
+# Storage: Storage (e.g., often a vectorstore) will house and often embed the splits
+# Retrieval: The app retrieves splits from storage (e.g., often with similar embeddings to the input question)
+# Generation: An LLM produces an answer using a prompt that includes the question and the retrieved data
+# Conversation (Extension): Hold a multi-turn conversation by adding Memory to your QA chain.
+
+
+# URL is our example blog post to create QA for
+loader = WebBaseLoader("https://lilianweng.github.io/posts/2023-06-23-agent/") # See other langchain loaders in ReadMe.md
+index = VectorstoreIndexCreator().from_loaders([loader])
+
+index.query("What is Task Decomposition?")
+
+#### Step 1. Load
+
+# URL is our example blog post to create QA for
+loader = WebBaseLoader("https://lilianweng.github.io/posts/2023-06-23-agent/") # See other langchain loaders in ReadMe.md
+data = loader.load()
+
+#### Step 2. Split
+# DocumentSplitters are just one type of the more generic DocumentTransformers, which can all be useful in this preprocessing step.
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+all_splits = text_splitter.split_documents(data)
+
+#### Step 3. Store
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+from llama_index import LangchainEmbedding, ServiceContext, VectorStoreIndex
+
+query_text = "put question here"
+
+# Using HuggingFace default embeddings
+# embed_model = LangchainEmbedding(HuggingFaceEmbeddings())
+
+# Vector Indexing: VectorStoreIndex. Not sure how to use all_splits, so showing example reading from directory.
+# from llama_index import SimpleDirectoryReader, VectorStoreIndex
+
+# service_context = ServiceContext.from_defaults(embed_model=embed_model)
+# documents = SimpleDirectoryReader('data/ex_docs').load_data()
+# new_index = VectorStoreIndex.from_documents(
+#     documents, 
+#     service_context=service_context,
+# )
+
+# Alternatively could use ListIndex instead of VectorStoreIndex: 
+# from llama_index import ListIndex
+# new_index = ListIndex.from_documents(documents)
+
+# # query will use the same embed_model
+# query_engine = new_index.as_query_engine(
+#     retriever_mode="embedding", 
+#     verbose=True, 
+#     service_context=service_context
+# )
+# response = query_engine.query(query_text)
+# print(response)
+
+
+# Vector Indexing: Chroma
+from langchain.vectorstores import Chroma
+
+embed_model = HuggingFaceEmbeddings()
+
+# If embeddings already exists, delete collection
+from chromadb.errors import InvalidDimensionException
+
+chroma_store_manager = ChromaVectorStoreManager(all_splits, embedding_model=embed_model)
+chroma_store_manager.create_vector_store()
+vectorstore = chroma_store_manager.vectorestore
+
+#### Step 4. Retrieve
+question = "What are the approaches to Task Decomposition?"
+docs = vectorstore.similarity_search(question)
+len(docs)
+
+
+# Vectorstores are commonly used for retrieval, but they are not the only option. For example, SVMs (see thread here) can also be used.
+
+# SVM example of retrieval
+from langchain.retrievers import SVMRetriever
+
+svm_retriever = SVMRetriever.from_documents(all_splits, embeddings=embed_model)
+docs_svm=svm_retriever.get_relevant_documents(question)
+print(len(docs_svm))
+
+# Some common ways to improve on vector similarity search include:
+
+# MultiQueryRetriever generates variants of the input question to improve retrieval.
+# Max marginal relevance selects for relevance and diversity among the retrieved documents.
+# Documents can be filtered during retrieval using metadata filters.
+
+import logging
+from langchain.retrievers.multi_query import MultiQueryRetriever
+
+logging.basicConfig()
+logging.getLogger('langchain.retrievers.multi_query').setLevel(logging.INFO)
+
+
+# Let's load an llm model for this portion.
+from langchain.llms import LlamaCpp
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+from langchain.callbacks.manager import CallbackManager
+callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+
+n_gpu_layers = 40  # Change this value based on your model and your GPU VRAM pool.
+n_batch = 512  # Should be between 1 and n_ctx, consider the amount of VRAM in your GPU.
+
+# Make sure the model path is correct for your system!
+llm = LlamaCpp(
+    model_path="Llama-2-7b-CHAT-GGUF/llama-2-7b-chat.Q2_K.gguf",
+    n_gpu_layers=n_gpu_layers,
+    n_batch=n_batch,
+    callback_manager=callback_manager,
+    verbose=True, # Verbose is required to pass to the callback manager
+)
+
+retriever_from_llm = MultiQueryRetriever.from_llm(retriever=vectorstore.as_retriever(),
+                                                  llm=llm)
+unique_docs = retriever_from_llm.get_relevant_documents(query=question)
+print(len(unique_docs))
+
+from langchain.chains import RetrievalQA
+
+#### Step 5. Generate
+# Distill the retrieved documents into an answer using an LLM/Chat model (e.g., gpt-3.5-turbo) with RetrievalQA chain.
+qa_chain = RetrievalQA.from_chain_type(llm, retriever=vectorstore.as_retriever())
+qa_chain({"query": question})
+
+# Note, you can pass in an LLM or a ChatModel (like we did here) to the RetrievalQA chain.
+
+# Return source documents
+# The full set of retrieved documents used for answer distillation can be returned using return_source_documents=True.
+
+from langchain.chains import RetrievalQA
+
+qa_chain = RetrievalQA.from_chain_type(llm, retriever=vectorstore.as_retriever(),
+                                       return_source_documents=True)
+result = qa_chain({"query": question})
+print(len(result['source_documents']))
+result['source_documents'][0]
+
+# Customizing retrieved document processing
+# Retrieved documents can be fed to an LLM for answer distillation in a few different ways such as stuff, refine, map-reduce, and map-rerank
+# stuff is commonly used because it simply "stuffs" all retrieved documents into the prompt.
+# The load_qa_chain is an easy way to pass documents to an LLM using these various approaches (e.g., see chain_type).
+
+from langchain.chains.question_answering import load_qa_chain
+
+refernce_docs = result['source_documents'] # Source documents
+chain = load_qa_chain(llm, chain_type="stuff")
+chain({"input_documents": refernce_docs, "question": question},return_only_outputs=True)
+
+# Another option is to pass the chain_type to RetrievalQA
+qa_chain = RetrievalQA.from_chain_type(llm, retriever=vectorstore.as_retriever(),
+                                       chain_type="stuff")
+result = qa_chain({"query": question})
+print("query:", result['query'])
+print("Response:", result['result'])

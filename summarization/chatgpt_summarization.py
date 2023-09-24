@@ -22,7 +22,6 @@ CONCISE SUMMARY:"""
 prompt = PromptTemplate.from_template(prompt_template)
 
 # Define LLM chain
-llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo-16k")
 llm_chain = LLMChain(llm=llm, prompt=prompt)
 
 # Define StuffDocumentsChain
