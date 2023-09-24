@@ -1,6 +1,9 @@
 from langchain.document_loaders import WebBaseLoader
 from langchain.indexes import VectorstoreIndexCreator
 
+import os
+import sys
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 if parent_dir not in sys.path:
@@ -79,17 +82,13 @@ from langchain.vectorstores import Chroma
 embed_model = HuggingFaceEmbeddings()
 
 # If embeddings already exists, delete collection
-from chromadb.errors import InvalidDimensionException
-
 chroma_store_manager = ChromaVectorStoreManager(all_splits, embedding_model=embed_model)
-chroma_store_manager.create_vector_store()
-vectorstore = chroma_store_manager.vectorestore
+vectorstore = chroma_store_manager.vectorstore
 
 #### Step 4. Retrieve
 question = "What are the approaches to Task Decomposition?"
 docs = vectorstore.similarity_search(question)
 len(docs)
-
 
 # Vectorstores are commonly used for retrieval, but they are not the only option. For example, SVMs (see thread here) can also be used.
 
