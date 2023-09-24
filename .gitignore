@@ -3,3 +3,4 @@
 chroma_db/
 Llama-2-7b-Chat-GGUF/
 sandbox.py
+*/__pycache__/*
