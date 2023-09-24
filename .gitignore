@@ -1,3 +1,4 @@
 *_*GGUF/
 .env
 chroma_db/
+Llama-2-7b-Chat-GGUF/
