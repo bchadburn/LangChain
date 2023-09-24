@@ -5,10 +5,8 @@ from llama_index import SimpleDirectoryReader, VectorStoreIndex, LangchainEmbedd
 import os
 import sys
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
     
 from vectorstore_setup.vectorstore_functions import VectorStoreIndexManager
 
