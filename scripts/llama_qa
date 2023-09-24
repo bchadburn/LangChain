@@ -122,7 +122,6 @@ callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 n_gpu_layers = 40  # Change this value based on your model and your GPU VRAM pool.
 n_batch = 512  # Should be between 1 and n_ctx, consider the amount of VRAM in your GPU.
 
-# Make sure the model path is correct for your system!
 llm = LlamaCpp(
     model_path="Llama-2-7b-CHAT-GGUF/llama-2-7b-chat.Q2_K.gguf",
     n_gpu_layers=n_gpu_layers,
