@@ -1,0 +1,2 @@
+https://www.mdpi.com/1424-8220/23/8/3910,
+https://towardsdatascience.com/an-overview-of-time-series-forecasting-models-a2fa7a358fcb
