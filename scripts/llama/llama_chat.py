@@ -3,7 +3,13 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-
+from langchain.schema import SystemMessage
+from langchain.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+)
+from langchain.memory import ConversationBufferMemory
 import os
 import sys
 
@@ -45,9 +51,59 @@ llm = pipeline.llm
 
 llm_chain = LLMChain(prompt=prompt_template, llm=llm)
 
-f = open("LangChain/data/chats/queries.txt", "r")
+f = open("LangChain/data/chats/sequential_questions.txt", "r")
 content = f.readlines()
+
 
 # Return answer from first question
 prompt = content[0]
 llm_chain.run(prompt)  # Can also use llm(question) instead of LLM chain
+
+
+# Create chat history
+prompt = ChatPromptTemplate.from_messages(
+    [
+        SystemMessage(
+            content="You are a chatbot having a conversation with a human."
+        ),  # The persistent system prompt
+        MessagesPlaceholder(
+            variable_name="chat_history"
+        ),  # Where the memory will be stored.
+        HumanMessagePromptTemplate.from_template(
+            "{human_input}"
+        ),  # Where the human input will injected
+    ]
+)
+
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+conversation = LLMChain(
+    llm=llm,
+    prompt=prompt,
+    verbose=True,
+    memory=memory,
+)
+
+conversation.predict(human_input=content[0])
+
+conversation.predict(human_input=content[1])
+
+conversation.predict(human_input=content[2])
+
+# Not sure how this is set up with LLAMA models yet. May need to parse history.messages to feed in the right format
+# from langchain.memory import ChatMessageHistory
+
+# history = ChatMessageHistory()
+
+# history.add_ai_message("hi!")
+
+# history.add_user_message("what is the capital of france?")
+
+# history.messages
+
+# ai_response = llm(history.messages)
+
+# print(ai_response.content)
+
+# history.add_ai_message(ai_response.content)
+# history.messages
