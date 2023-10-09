@@ -1,0 +1,1 @@
+# Add previous chat history to be used by ConversationalRetrievalChain methods
