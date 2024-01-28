@@ -1,15 +1,19 @@
 from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import WebBaseLoader
+from langchain.document_loaders import WebBaseLoader, PyPDFLoader
 from langchain.chains.summarize import load_summarize_chain
 
 # See https://python.langchain.com/docs/use_cases/summarization
+
+model_version = "gpt-3.5-turbo"
+# model_version = "gpt-4"
+llm = ChatOpenAI(temperature=0, model_name=model_version)
+
+chain = load_summarize_chain(llm, chain_type="stuff")
 loader = WebBaseLoader("https://lilianweng.github.io/posts/2023-06-23-agent/")
 docs = loader.load()
 
-llm = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo-16k")
-chain = load_summarize_chain(llm, chain_type="stuff")
-
-chain.run(docs)
+print(chain.run(docs))
+    
 
 from langchain.chains.llm import LLMChain
 from langchain.prompts import PromptTemplate
