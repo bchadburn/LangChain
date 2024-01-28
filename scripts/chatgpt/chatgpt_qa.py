@@ -96,9 +96,9 @@ result['source_documents'][0]
 
 from langchain.chains.question_answering import load_qa_chain
 
-refernce_docs = result['source_documents'] # Source documents
+reference_docs = result['source_documents'] # Source documents
 chain = load_qa_chain(llm, chain_type="stuff")
-chain({"input_documents": refernce_docs, "question": question},return_only_outputs=True)
+chain({"input_documents": reference_docs, "question": question}, return_only_outputs=True)
 
 # Another option is to pass the chain_type to RetrievalQA
 qa_chain = RetrievalQA.from_chain_type(llm,retriever=vectorstore.as_retriever(),
