@@ -96,9 +96,9 @@ result['source_documents'][0]
 
 from langchain.chains.question_answering import load_qa_chain
 
-reference_docs = result['source_documents'] # Source documents
+refernce_docs = result['source_documents'] # Source documents
 chain = load_qa_chain(llm, chain_type="stuff")
-chain({"input_documents": reference_docs, "question": question}, return_only_outputs=True)
+chain({"input_documents": refernce_docs, "question": question},return_only_outputs=True)
 
 # Another option is to pass the chain_type to RetrievalQA
 qa_chain = RetrievalQA.from_chain_type(llm,retriever=vectorstore.as_retriever(),
@@ -106,31 +106,3 @@ qa_chain = RetrievalQA.from_chain_type(llm,retriever=vectorstore.as_retriever(),
 result = qa_chain({"query": question})
 print("query:", result['query'])
 print("Response:", result['result'])
-
-
-# Load and QA a single document without vectorization
-
-from langchain.chains.question_answering import load_qa_chain
-from langchain.document_loaders import WebBaseLoader, PyPDFLoader
-
-chain = load_qa_chain(llm, chain_type="stuff")
-loader = PyPDFLoader("hierarchical_forecasting.pdf")
-docs = loader.load()
-
-max_docs = 6
-i = 0
-j = max_docs
-while j < len(docs):
-    tmp_docs = docs[i:j]
-    while True:
-        question = input("Question: ")
-        if question == "exit" or len(question)==0:
-            break
-        else:
-            # Generate a response to the follow-up question
-            response = chain({"input_documents": tmp_docs, "question": question}, return_only_outputs=True)['output_text']
-            print(response)
-   
-    # Update the counters
-    i += max_docs
-    j += max_docs
